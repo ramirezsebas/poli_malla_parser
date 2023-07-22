@@ -3,7 +3,7 @@ import Image from 'next/image'
 import styles from './page.module.css'
 import Button from '@mui/material/Button';
 import React from 'react';
-import { Box, CircularProgress, Modal, TextField, Typography } from '@mui/material';
+import { Alert, Box, CircularProgress, Modal, TextField, Typography } from '@mui/material';
 import style from 'styled-jsx/style';
 
 
@@ -16,11 +16,14 @@ export default function Home() {
 
     const [loadingMallaJson, setLoadingMallaJson] = React.useState<boolean>(false);
     const [downloadingMallaJson, setDownloadingMallaJson] = React.useState<boolean>(false);
+    const [errorMallaJson, setErrorMallaJson] = React.useState<string | null>(null);
 
     const [loadingMallaExcel, setLoadingMallaExcel] = React.useState<boolean>(false);
     const [downloadingMallaExcel, setDownloadingMallaExcel] = React.useState<boolean>(false);
+    const [errorMallaExcel, setErrorMallaExcel] = React.useState<string | null>(null);
 
     const [file, setFile] = React.useState<File | null>(null);
+    const [errorFile, setErrorFile] = React.useState<string | null>(null);
 
 
     const handleDownload = (extension: Extension) => {
@@ -29,6 +32,10 @@ export default function Home() {
             fetch("/api/malla-excel")
                 .then(response => {
                     if (!response.ok || response.status !== 200) {
+                        setErrorMallaExcel("Error al descargar la malla");
+                        setTimeout(() => {
+                            setErrorMallaExcel(null);
+                        }, 3000);
                         return;
                     }
                     return response.json();
@@ -37,7 +44,13 @@ export default function Home() {
                     const linkResponse = data.link;
                     setDownloadingMallaExcel(true);
                     fetch(linkResponse)
-                        .then(response => response.blob())
+                        .then(response => {
+                            setErrorMallaExcel("Error al descargar la malla");
+                            setTimeout(() => {
+                                setErrorMallaExcel(null);
+                            }, 3000);
+                            return response.blob();
+                        })
                         .then(blob => {
                             const url = window.URL.createObjectURL(blob);
                             const a = document.createElement('a');
@@ -49,14 +62,22 @@ export default function Home() {
                             window.URL.revokeObjectURL(url);
                         }
                         )
-                        .catch(() => alert('oh no!'))
+                        .catch(() => {
+                            setErrorMallaExcel("Error al descargar la malla");
+                            setTimeout(() => {
+                                setErrorMallaExcel(null);
+                            }, 3000);
+                        })
                         .finally(() => {
                             setDownloadingMallaExcel(false);
                         });
 
                 })
                 .catch((error) => {
-                    console.error('Error:', error);
+                    setErrorMallaExcel("Error al descargar la malla");
+                    setTimeout(() => {
+                        setErrorMallaExcel(null);
+                    }, 3000);
                 })
                 .finally(() => {
                     setLoadingMallaExcel(false);
@@ -68,6 +89,7 @@ export default function Home() {
             setLoadingMallaJson(true);
 
             if (!file) {
+                setErrorFile("No se ha subido ningun archivo");
                 return;
             }
 
@@ -75,6 +97,17 @@ export default function Home() {
             const formData = new FormData()
 
             formData.append('file', file)
+
+            if (formData.get('file') === null) {
+                setErrorFile("No se ha subido ningun archivo (key=file)");
+                return;
+            }
+
+            if (formData.getAll('file').length > 1) {
+                setErrorFile("Solo se puede subir un archivo");
+                return;
+            }
+
             fetch("/api/mallas",
                 {
                     method: 'POST',
@@ -83,6 +116,11 @@ export default function Home() {
             )
                 .then(response => {
                     if (!response.ok || response.status !== 200) {
+                        setErrorMallaJson("Error al descargar la malla");
+                        setTimeout(() => {
+                            setErrorMallaJson(null);
+                        }, 3000);
+
                         return;
                     }
                     return response.json();
@@ -111,7 +149,11 @@ export default function Home() {
 
                 })
                 .catch((error) => {
-                    console.error('Error:', error);
+                    setErrorMallaJson("Error al descargar la malla");
+                    setTimeout(() => {
+                        setErrorMallaJson(null);
+                    }, 3000);
+
                 })
                 .finally(() => {
                     setLoadingMallaJson(false);
@@ -193,15 +235,17 @@ export default function Home() {
                                 const files = event.target.files;
 
                                 if (!files) {
+                                    setErrorFile("No se ha subido ningun archivo");
                                     return;
                                 }
 
                                 if (files.length === 0) {
+                                    setErrorFile("No se ha subido ningun archivo");
                                     return;
                                 }
 
                                 if (files.length > 1) {
-                                    alert("Solo se puede subir un archivo");
+                                    setErrorFile("Solo se puede subir un archivo");
                                     return;
                                 }
                                 setFile(files[0]);
@@ -218,6 +262,26 @@ export default function Home() {
                     </Typography>
                 </div>
             }
+
+            {
+                errorMallaExcel && <Alert severity="error">{
+                    errorMallaExcel
+                }</Alert>
+
+            }
+
+            {
+                errorMallaJson && <Alert severity="error">{
+                    errorMallaJson
+                }</Alert>
+            }
+
+            {
+                errorFile && <Alert severity="error">{
+                    errorFile
+                }</Alert>
+            }
+
 
 
 
